@@ -396,8 +396,6 @@
       border-radius: 18px;
       font-size: 0.94rem;
       line-height: 1.55;
-      white-space: pre-wrap;
-      word-break: break-word;
     }
 
     .message.user .bubble {
@@ -418,7 +416,7 @@
       border-color: color-mix(in srgb, var(--accent), transparent 60%);
     }
 
-    .message.streaming .bubble::after {
+    .message.streaming .bubble-text::after {
       content: "\2588";
       color: var(--accent);
       animation: blink 0.75s step-end infinite;
@@ -427,6 +425,74 @@
 
     /* Hidden but kept for JS compat */
     .stream-hint { display: none; }
+
+    /* ── Bubble content structure ──────────────────── */
+    .bubble-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .bubble-text:empty {
+      display: none;
+    }
+
+    .bubble-images {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bubble-images:empty {
+      display: none;
+    }
+
+    .bubble-text:not(:empty) + .bubble-images:not(:empty) {
+      margin-top: 10px;
+    }
+
+    .generated-image {
+      max-width: 100%;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+
+    .generated-image:hover {
+      opacity: 0.88;
+    }
+
+    .generated-image:active {
+      transform: scale(0.98);
+    }
+
+    /* ── Image lightbox ─────────────────────────────── */
+    .lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: fadeIn 0.2s ease-out;
+      cursor: zoom-out;
+      padding: 20px;
+    }
+
+    .lightbox-overlay[hidden] {
+      display: none;
+    }
+
+    .lightbox-overlay img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6);
+      cursor: default;
+    }
 
     /* ── Composer ──────────────────────────────────────── */
     .composer {
@@ -741,6 +807,127 @@
 
     /* Firefox scrollbar */
     .chat { scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
+
+    /* ── Model management section ─────────────────── */
+    .section-divider {
+      height: 1px;
+      background: var(--border-mid);
+      margin: 24px 0;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    .section-help {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+
+    .model-toggle-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .model-toggle-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      transition: background 0.12s;
+    }
+
+    .model-toggle-item:hover {
+      background: var(--surface-2);
+    }
+
+    .model-toggle-item.disabled {
+      opacity: 0.5;
+    }
+
+    .model-toggle-name {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .model-toggle-item.disabled .model-toggle-name {
+      color: var(--text-muted);
+      text-decoration: line-through;
+      text-decoration-color: var(--text-muted);
+    }
+
+    /* Toggle switch */
+    .toggle-switch {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--surface-3);
+      border: 1px solid var(--border-mid);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .toggle-track::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .toggle-switch input:checked + .toggle-track {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle-switch input:checked + .toggle-track::after {
+      transform: translateX(18px);
+      background: white;
+    }
+
+    .toggle-switch input:focus-visible + .toggle-track {
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .model-toggle-empty {
+      padding: 16px 12px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -823,10 +1010,21 @@
           </div>
         </div>
 
+        <div class="section-divider"></div>
+
+        <div class="section-label">Manage Models</div>
+        <p class="section-help">Toggle models on or off. Disabled models won't appear in the model picker.</p>
+        <div id="modelToggleList" class="model-toggle-list"></div>
+
         <div class="sheet-footer">
           <button id="saveKeyButton" type="button" class="btn primary">Save</button>
         </div>
       </div>
+    </div>
+
+    <!-- ── Image lightbox ──────────────────────────── -->
+    <div id="lightboxOverlay" class="lightbox-overlay" hidden>
+      <img id="lightboxImage" alt="Full-size image">
     </div>
 
   </div>
@@ -862,6 +1060,8 @@
       providerId: "grok",
       apiKey: "",
       model: "",
+      disabledModels: new Set(),
+      allModels: [],
       messages: [],
       isRunning: false,
       abortController: null
@@ -888,7 +1088,8 @@
       chatThread: document.getElementById("chatThread"),
       composerForm: document.getElementById("composerForm"),
       promptInput: document.getElementById("promptInput"),
-      sendButton: document.getElementById("sendButton")
+      sendButton: document.getElementById("sendButton"),
+      modelToggleList: document.getElementById("modelToggleList")
     };
 
     /* ── Provider factory ──────────────────────────── */
@@ -1003,8 +1204,8 @@
             } catch {
               continue;
             }
-            const delta = extractDeltaText(json);
-            if (delta) {
+            const delta = extractDelta(json);
+            if (delta.text || delta.images.length > 0) {
               onDelta(delta);
             }
           }
@@ -1012,22 +1213,30 @@
       }
     }
 
-    function extractDeltaText(packet) {
+    function extractDelta(packet) {
+      const result = { text: "", images: [] };
       const choice = packet && Array.isArray(packet.choices) ? packet.choices[0] : null;
       if (!choice || !choice.delta) {
-        return "";
+        return result;
       }
       const content = choice.delta.content;
       if (typeof content === "string") {
-        return content;
+        result.text = content;
+        return result;
       }
       if (Array.isArray(content)) {
-        return content
-          .map((part) => typeof part === "string" ? part : part && part.text)
-          .filter(Boolean)
-          .join("");
+        for (const part of content) {
+          if (typeof part === "string") {
+            result.text += part;
+          } else if (part && part.type === "text") {
+            result.text += part.text || "";
+          } else if (part && part.type === "image_url" && part.image_url && part.image_url.url) {
+            result.images.push(part.image_url.url);
+          }
+        }
+        return result;
       }
-      return "";
+      return result;
     }
 
     async function buildApiError(response) {
@@ -1074,7 +1283,8 @@
       safeLocalStorageSet(STORAGE_KEY, JSON.stringify({
         providerId: state.providerId,
         apiKey: state.apiKey,
-        model: state.model
+        model: state.model,
+        disabledModels: [...state.disabledModels]
       }));
     }
 
@@ -1093,6 +1303,9 @@
         }
         if (typeof parsed.model === "string") {
           state.model = parsed.model;
+        }
+        if (Array.isArray(parsed.disabledModels)) {
+          state.disabledModels = new Set(parsed.disabledModels);
         }
       } catch {
         // Ignore invalid JSON and fall back to defaults.
@@ -1125,6 +1338,98 @@
 
     function updateHeaderTitle() {
       els.headerTitle.textContent = state.model || "LLM UI";
+    }
+
+    /* ── Model toggle management ────────────────────── */
+    function renderModelToggles() {
+      const container = els.modelToggleList;
+      container.innerHTML = "";
+
+      if (state.allModels.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "model-toggle-empty";
+        empty.textContent = "No models loaded yet. Save an API key and refresh.";
+        container.appendChild(empty);
+        return;
+      }
+
+      state.allModels.forEach((modelId) => {
+        const isEnabled = !state.disabledModels.has(modelId);
+        const item = document.createElement("label");
+        item.className = "model-toggle-item" + (isEnabled ? "" : " disabled");
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "model-toggle-name";
+        nameSpan.textContent = modelId;
+
+        const toggle = document.createElement("div");
+        toggle.className = "toggle-switch";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = isEnabled;
+        checkbox.setAttribute("aria-label", "Toggle " + modelId);
+
+        const track = document.createElement("span");
+        track.className = "toggle-track";
+
+        toggle.appendChild(checkbox);
+        toggle.appendChild(track);
+        item.appendChild(nameSpan);
+        item.appendChild(toggle);
+
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) {
+            state.disabledModels.delete(modelId);
+            item.classList.remove("disabled");
+          } else {
+            state.disabledModels.add(modelId);
+            item.classList.add("disabled");
+          }
+          saveSettings();
+          applyModelFilter();
+        });
+
+        container.appendChild(item);
+      });
+    }
+
+    function applyModelFilter() {
+      const enabledModels = state.allModels.filter((m) => !state.disabledModels.has(m));
+      renderFilteredModelOptions(enabledModels);
+      renderModelPicker();
+      updateHeaderTitle();
+    }
+
+    function renderFilteredModelOptions(models) {
+      els.modelSelect.innerHTML = "";
+      if (models.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No model available";
+        els.modelSelect.appendChild(option);
+        els.modelSelect.disabled = true;
+        state.model = "";
+        saveSettings();
+        updateHeaderTitle();
+        return;
+      }
+
+      models.forEach((modelId) => {
+        const option = document.createElement("option");
+        option.value = modelId;
+        option.textContent = modelId;
+        els.modelSelect.appendChild(option);
+      });
+
+      if (!models.includes(state.model)) {
+        state.model = models[0];
+      }
+
+      els.modelSelect.value = state.model;
+      els.modelSelect.disabled = false;
+      saveSettings();
+      updateHeaderTitle();
     }
 
     /* ── Model picker (header dropdown) ────────────── */
@@ -1216,34 +1521,11 @@
     }
 
     function renderModelOptions(models) {
-      els.modelSelect.innerHTML = "";
-      if (models.length === 0) {
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = "No model available";
-        els.modelSelect.appendChild(option);
-        els.modelSelect.disabled = true;
-        state.model = "";
-        saveSettings();
-        updateHeaderTitle();
-        return;
-      }
+      state.allModels = models;
+      renderModelToggles();
 
-      models.forEach((modelId) => {
-        const option = document.createElement("option");
-        option.value = modelId;
-        option.textContent = modelId;
-        els.modelSelect.appendChild(option);
-      });
-
-      if (!models.includes(state.model)) {
-        state.model = models[0];
-      }
-
-      els.modelSelect.value = state.model;
-      els.modelSelect.disabled = false;
-      saveSettings();
-      updateHeaderTitle();
+      const enabledModels = models.filter((m) => !state.disabledModels.has(m));
+      renderFilteredModelOptions(enabledModels);
     }
 
     async function loadModels({ forceRefreshMessage = false } = {}) {
@@ -1274,7 +1556,7 @@
 
     /* ── Chat ──────────────────────────────────────── */
     function createMessage(role, content) {
-      const message = { role, content };
+      const message = { role, content, images: [] };
       state.messages.push(message);
 
       const article = document.createElement("article");
@@ -1283,7 +1565,15 @@
 
       const bubble = document.createElement("div");
       bubble.className = "bubble";
-      bubble.textContent = content;
+
+      const bubbleText = document.createElement("span");
+      bubbleText.className = "bubble-text";
+      bubbleText.textContent = content;
+      bubble.appendChild(bubbleText);
+
+      const bubbleImages = document.createElement("div");
+      bubbleImages.className = "bubble-images";
+      bubble.appendChild(bubbleImages);
 
       article.appendChild(bubble);
       els.chatThread.appendChild(article);
@@ -1291,7 +1581,31 @@
       updateEmptyState();
       scrollChatToBottom();
 
-      return { message, article, bubble };
+      return { message, article, bubble, bubbleText, bubbleImages };
+    }
+
+    function appendGeneratedImage(container, imageUrl) {
+      const img = document.createElement("img");
+      img.className = "generated-image";
+      img.src = imageUrl;
+      img.alt = "Generated image";
+      img.loading = "lazy";
+      img.addEventListener("load", scrollChatToBottom);
+      img.addEventListener("click", () => openLightbox(imageUrl));
+      container.appendChild(img);
+    }
+
+    function openLightbox(imageUrl) {
+      const overlay = document.getElementById("lightboxOverlay");
+      const img = document.getElementById("lightboxImage");
+      img.src = imageUrl;
+      overlay.hidden = false;
+    }
+
+    function closeLightbox() {
+      const overlay = document.getElementById("lightboxOverlay");
+      overlay.hidden = true;
+      document.getElementById("lightboxImage").src = "";
     }
 
     function updateEmptyState() {
@@ -1377,7 +1691,8 @@
       assistantBlock.article.classList.add("streaming");
 
       const messagesForRequest = state.messages
-        .filter((m) => m.role === "user" || (m.role === "assistant" && m.content));
+        .filter((m) => m.role === "user" || (m.role === "assistant" && m.content))
+        .map((m) => ({ role: m.role, content: m.content }));
 
       updateStatus(true);
       state.abortController = new AbortController();
@@ -1389,8 +1704,16 @@
           messages: messagesForRequest,
           signal: state.abortController.signal,
           onDelta(delta) {
-            assistantBlock.message.content += delta;
-            assistantBlock.bubble.textContent = assistantBlock.message.content;
+            if (delta.text) {
+              assistantBlock.message.content += delta.text;
+              assistantBlock.bubbleText.textContent = assistantBlock.message.content;
+            }
+            if (delta.images) {
+              for (const imageUrl of delta.images) {
+                assistantBlock.message.images.push(imageUrl);
+                appendGeneratedImage(assistantBlock.bubbleImages, imageUrl);
+              }
+            }
             scrollChatToBottom();
           }
         });
@@ -1405,10 +1728,10 @@
           assistantBlock.message.content = "[Stopped]";
         }
       } finally {
-        if (!assistantBlock.message.content) {
+        if (!assistantBlock.message.content && assistantBlock.message.images.length === 0) {
           assistantBlock.message.content = "(No content returned.)";
         }
-        assistantBlock.bubble.textContent = assistantBlock.message.content;
+        assistantBlock.bubbleText.textContent = assistantBlock.message.content;
         assistantBlock.article.classList.remove("streaming");
         updateStatus(false);
         state.abortController = null;
@@ -1432,8 +1755,19 @@
       });
 
       document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && !els.modelPickerDropdown.hidden) {
-          closeModelPicker();
+        if (event.key === "Escape") {
+          if (!document.getElementById("lightboxOverlay").hidden) {
+            closeLightbox();
+          } else if (!els.modelPickerDropdown.hidden) {
+            closeModelPicker();
+          }
+        }
+      });
+
+      /* Image lightbox close on backdrop click */
+      document.getElementById("lightboxOverlay").addEventListener("click", (event) => {
+        if (event.target === event.currentTarget) {
+          closeLightbox();
         }
       });
 
