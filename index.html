@@ -1219,10 +1219,12 @@
         if (!state.apiKey) {
           showNotice("Cleared API key.");
           await loadModels();
+          closeSettings();
           return;
         }
         showNotice("API key saved.");
         await loadModels({ forceRefreshMessage: true });
+        closeSettings();
       });
 
       /* Provider change */
