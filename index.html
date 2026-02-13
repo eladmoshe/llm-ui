@@ -6,6 +6,12 @@
   <meta name="theme-color" content="#09090b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LLM UI">
+  <meta name="description" content="A beautiful chat interface for large language models">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
   <title>LLM UI</title>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap");
@@ -928,6 +934,148 @@
       color: var(--text-muted);
       text-align: center;
     }
+
+    /* ── History panel ──────────────────────────────── */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.12s;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .history-item:hover {
+      background: var(--surface-2);
+    }
+
+    .history-item:active {
+      background: var(--surface-3);
+    }
+
+    .history-item.active {
+      background: var(--accent-glow);
+      border: 1px solid color-mix(in srgb, var(--accent), transparent 70%);
+    }
+
+    .history-item-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .history-item-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-item-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .history-item-meta .dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .history-item-delete {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 8px;
+      cursor: pointer;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.12s, color 0.12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .history-item:hover .history-item-delete,
+    .history-item-delete:focus-visible {
+      opacity: 1;
+    }
+
+    /* Always show delete on touch devices */
+    @media (hover: none) {
+      .history-item-delete { opacity: 0.7; }
+    }
+
+    .history-item-delete:hover {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .history-item-delete svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .history-empty {
+      padding: 32px 16px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .history-empty-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+    }
+
+    .history-empty-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .history-empty p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .history-clear-all {
+      margin-top: 16px;
+    }
   </style>
 </head>
 <body>
@@ -946,8 +1094,11 @@
         </div>
       </div>
       <div class="header-actions">
-        <button class="icon-btn" id="clearChatButton" type="button" aria-label="Clear chat">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+        <button class="icon-btn" id="historyToggle" type="button" aria-label="Chat history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </button>
+        <button class="icon-btn" id="newChatButton" type="button" aria-label="New chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
         </button>
         <button class="icon-btn" id="settingsToggle" type="button" aria-label="Settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
@@ -1022,6 +1173,24 @@
       </div>
     </div>
 
+    <!-- ── History sheet ───────────────────────────── -->
+    <div id="historyPanel" class="settings-overlay" hidden>
+      <div class="settings-backdrop" id="historyBackdrop"></div>
+      <div class="settings-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h2>Chat History</h2>
+          <button class="icon-btn" id="historyClose" type="button" aria-label="Close history">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+        <div class="sheet-footer history-clear-all" id="historyClearAllWrapper" hidden>
+          <button id="historyClearAll" type="button" class="btn danger" style="flex:1">Clear All History</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Image lightbox ──────────────────────────── -->
     <div id="lightboxOverlay" class="lightbox-overlay" hidden>
       <img id="lightboxImage" alt="Full-size image">
@@ -1056,6 +1225,9 @@
     };
 
     /* ── App state ─────────────────────────────────── */
+    const HISTORY_KEY = "llm-ui.history.v1";
+    const MAX_HISTORY = 20;
+
     const state = {
       providerId: "grok",
       apiKey: "",
@@ -1064,7 +1236,8 @@
       allModels: [],
       messages: [],
       isRunning: false,
-      abortController: null
+      abortController: null,
+      currentConversationId: null
     };
 
     /* ── DOM refs ──────────────────────────────────── */
@@ -1081,7 +1254,14 @@
       saveKeyButton: document.getElementById("saveKeyButton"),
       modelSelect: document.getElementById("modelSelect"),
       refreshModelsButton: document.getElementById("refreshModelsButton"),
-      clearChatButton: document.getElementById("clearChatButton"),
+      newChatButton: document.getElementById("newChatButton"),
+      historyToggle: document.getElementById("historyToggle"),
+      historyPanel: document.getElementById("historyPanel"),
+      historyClose: document.getElementById("historyClose"),
+      historyBackdrop: document.getElementById("historyBackdrop"),
+      historyList: document.getElementById("historyList"),
+      historyClearAll: document.getElementById("historyClearAll"),
+      historyClearAllWrapper: document.getElementById("historyClearAllWrapper"),
       notice: document.getElementById("notice"),
       statusDot: document.getElementById("statusDot"),
       headerTitle: document.getElementById("headerTitle"),
@@ -1310,6 +1490,238 @@
       } catch {
         // Ignore invalid JSON and fall back to defaults.
       }
+    }
+
+    /* ── Conversation history ─────────────────────── */
+    function generateConversationId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function getConversationTitle(messages) {
+      const firstUser = messages.find((m) => m.role === "user");
+      if (!firstUser || !firstUser.content) return "Untitled chat";
+      const title = firstUser.content.replace(/\s+/g, " ").trim();
+      return title.length > 80 ? title.slice(0, 77) + "..." : title;
+    }
+
+    function loadHistory() {
+      const raw = safeLocalStorageGet(HISTORY_KEY);
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveHistory(history) {
+      safeLocalStorageSet(HISTORY_KEY, JSON.stringify(history));
+    }
+
+    function saveCurrentConversation() {
+      // Only save if there are actual messages
+      if (state.messages.length === 0) return;
+
+      const history = loadHistory();
+
+      // Build the conversation object
+      const conversation = {
+        id: state.currentConversationId || generateConversationId(),
+        title: getConversationTitle(state.messages),
+        model: state.model || "unknown",
+        updatedAt: Date.now(),
+        messages: state.messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          images: m.images || []
+        }))
+      };
+
+      // Update the state with the conversation ID
+      state.currentConversationId = conversation.id;
+
+      // Remove existing entry for this conversation
+      const idx = history.findIndex((c) => c.id === conversation.id);
+      if (idx !== -1) {
+        history.splice(idx, 1);
+      }
+
+      // Add to front (most recent first)
+      history.unshift(conversation);
+
+      // Trim to max
+      if (history.length > MAX_HISTORY) {
+        history.length = MAX_HISTORY;
+      }
+
+      saveHistory(history);
+    }
+
+    function deleteConversation(id) {
+      const history = loadHistory();
+      const filtered = history.filter((c) => c.id !== id);
+      saveHistory(filtered);
+
+      // If we deleted the current conversation, reset its ID
+      if (state.currentConversationId === id) {
+        state.currentConversationId = null;
+      }
+    }
+
+    function clearAllHistory() {
+      saveHistory([]);
+      state.currentConversationId = null;
+    }
+
+    function loadConversation(id) {
+      const history = loadHistory();
+      return history.find((c) => c.id === id) || null;
+    }
+
+    function openConversation(id) {
+      // Save current conversation first
+      saveCurrentConversation();
+
+      const conversation = loadConversation(id);
+      if (!conversation) return;
+
+      // Clear current chat
+      state.messages = [];
+      els.chatThread.innerHTML = "";
+
+      // Restore conversation
+      state.currentConversationId = conversation.id;
+
+      conversation.messages.forEach((m) => {
+        const block = createMessage(m.role, m.content);
+        if (m.images && m.images.length > 0) {
+          m.images.forEach((url) => {
+            block.message.images.push(url);
+            appendGeneratedImage(block.bubbleImages, url);
+          });
+        }
+      });
+
+      updateEmptyState();
+      scrollChatToBottom();
+      closeHistory();
+    }
+
+    function startNewChat() {
+      // Save current conversation before starting new
+      saveCurrentConversation();
+
+      state.messages = [];
+      state.currentConversationId = null;
+      els.chatThread.innerHTML = "";
+      updateEmptyState();
+    }
+
+    function formatRelativeTime(timestamp) {
+      const diff = Date.now() - timestamp;
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      if (seconds < 60) return "just now";
+      if (minutes < 60) return minutes + "m ago";
+      if (hours < 24) return hours + "h ago";
+      if (days < 7) return days + "d ago";
+      return new Date(timestamp).toLocaleDateString(undefined, {
+        month: "short", day: "numeric"
+      });
+    }
+
+    /* ── History UI ────────────────────────────────── */
+    function renderHistoryList() {
+      const history = loadHistory();
+      const container = els.historyList;
+      container.innerHTML = "";
+
+      if (history.length === 0) {
+        els.historyClearAllWrapper.hidden = true;
+        const empty = document.createElement("div");
+        empty.className = "history-empty";
+        empty.innerHTML = [
+          '<div class="history-empty-icon">',
+          '  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">',
+          '    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+          '  </svg>',
+          '</div>',
+          '<p>No conversations yet.<br>Your chats will appear here.</p>'
+        ].join("\n");
+        container.appendChild(empty);
+        return;
+      }
+
+      els.historyClearAllWrapper.hidden = false;
+
+      history.forEach((conv) => {
+        const item = document.createElement("div");
+        item.className = "history-item" + (conv.id === state.currentConversationId ? " active" : "");
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+
+        const body = document.createElement("div");
+        body.className = "history-item-body";
+
+        const title = document.createElement("div");
+        title.className = "history-item-title";
+        title.textContent = conv.title;
+
+        const meta = document.createElement("div");
+        meta.className = "history-item-meta";
+
+        const msgCount = conv.messages ? conv.messages.length : 0;
+        meta.innerHTML =
+          '<span>' + escapeHtml(conv.model || "unknown") + '</span>' +
+          '<span class="dot"></span>' +
+          '<span>' + msgCount + ' msg' + (msgCount !== 1 ? "s" : "") + '</span>' +
+          '<span class="dot"></span>' +
+          '<span>' + formatRelativeTime(conv.updatedAt) + '</span>';
+
+        body.appendChild(title);
+        body.appendChild(meta);
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "history-item-delete";
+        deleteBtn.type = "button";
+        deleteBtn.setAttribute("aria-label", "Delete conversation");
+        deleteBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
+
+        deleteBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          deleteConversation(conv.id);
+          renderHistoryList();
+        });
+
+        item.appendChild(body);
+        item.appendChild(deleteBtn);
+
+        item.addEventListener("click", () => {
+          openConversation(conv.id);
+        });
+
+        item.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openConversation(conv.id);
+          }
+        });
+
+        container.appendChild(item);
+      });
+    }
+
+    function openHistory() {
+      renderHistoryList();
+      els.historyPanel.hidden = false;
+    }
+
+    function closeHistory() {
+      els.historyPanel.hidden = true;
     }
 
     /* ── UI updates ────────────────────────────────── */
@@ -1652,9 +2064,9 @@
     }
 
     function clearChat() {
-      state.messages = [];
-      els.chatThread.innerHTML = "";
-      updateEmptyState();
+      // Save current conversation before clearing
+      saveCurrentConversation();
+      startNewChat();
     }
 
     async function sendPrompt() {
@@ -1822,8 +2234,22 @@
         await loadModels({ forceRefreshMessage: true });
       });
 
-      /* Clear chat */
-      els.clearChatButton.addEventListener("click", clearChat);
+      /* New chat (was clear chat) */
+      els.newChatButton.addEventListener("click", clearChat);
+
+      /* History panel */
+      els.historyToggle.addEventListener("click", () => {
+        closeModelPicker();
+        openHistory();
+      });
+
+      els.historyClose.addEventListener("click", closeHistory);
+      els.historyBackdrop.addEventListener("click", closeHistory);
+
+      els.historyClearAll.addEventListener("click", () => {
+        clearAllHistory();
+        renderHistoryList();
+      });
 
       /* Composer */
       els.promptInput.addEventListener("input", () => {
@@ -1870,6 +2296,15 @@
     }
 
     init();
+
+    /* ── PWA: Register Service Worker ────────────────── */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {
+          // Service worker registration failed — app still works without it
+        });
+      });
+    }
   </script>
 </body>
 </html>
