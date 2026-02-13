@@ -2147,6 +2147,12 @@
         assistantBlock.article.classList.remove("streaming");
         updateStatus(false);
         state.abortController = null;
+
+        // Auto-save conversation to history
+        if (!state.currentConversationId) {
+          state.currentConversationId = generateConversationId();
+        }
+        saveCurrentConversation();
       }
     }
 
@@ -2170,6 +2176,10 @@
         if (event.key === "Escape") {
           if (!document.getElementById("lightboxOverlay").hidden) {
             closeLightbox();
+          } else if (!els.historyPanel.hidden) {
+            closeHistory();
+          } else if (!els.settingsPanel.hidden) {
+            closeSettings();
           } else if (!els.modelPickerDropdown.hidden) {
             closeModelPicker();
           }
@@ -2186,6 +2196,7 @@
       /* Settings open / close */
       els.settingsToggle.addEventListener("click", () => {
         closeModelPicker();
+        closeHistory();
         els.settingsPanel.hidden = false;
       });
 
@@ -2240,6 +2251,7 @@
       /* History panel */
       els.historyToggle.addEventListener("click", () => {
         closeModelPicker();
+        closeSettings();
         openHistory();
       });
 
