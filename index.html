@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#09090b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -40,6 +40,7 @@
     /* ── Reset ─────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
+    html { touch-action: manipulation; }  /* prevent double-tap & pinch zoom */
 
     body {
       font-family: "DM Sans", system-ui, -apple-system, sans-serif;
@@ -109,6 +110,144 @@
       overflow: hidden;
       text-overflow: ellipsis;
       letter-spacing: -0.01em;
+    }
+
+    /* ── Model picker (header dropdown) ─────────────── */
+    .model-picker-wrapper {
+      position: relative;
+      min-width: 0;
+    }
+
+    .model-picker-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      margin: -4px -8px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 240px;
+    }
+
+    .model-picker-trigger:hover {
+      background: var(--surface-2);
+    }
+
+    .model-picker-trigger:active {
+      background: var(--surface-3);
+    }
+
+    .model-picker-trigger .chevron {
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+
+    .model-picker-trigger.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .model-picker-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: -4px;
+      min-width: 220px;
+      max-width: 320px;
+      max-height: 280px;
+      overflow-y: auto;
+      background: var(--surface);
+      border: 1px solid var(--border-mid);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.03);
+      z-index: 50;
+      padding: 4px;
+      animation: dropdownIn 0.15s ease-out;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-light) transparent;
+    }
+
+    .model-picker-dropdown[hidden] {
+      display: none;
+    }
+
+    .model-picker-dropdown::-webkit-scrollbar { width: 5px; }
+    .model-picker-dropdown::-webkit-scrollbar-track { background: transparent; }
+    .model-picker-dropdown::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 3px;
+    }
+
+    .model-picker-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-align: left;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .model-picker-item:hover {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .model-picker-item:active {
+      background: var(--surface-3);
+    }
+
+    .model-picker-item.active {
+      color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    .model-picker-item .check-icon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      opacity: 0;
+    }
+
+    .model-picker-item.active .check-icon {
+      opacity: 1;
+    }
+
+    .model-picker-empty {
+      padding: 12px 10px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    @keyframes dropdownIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .header-actions {
@@ -611,7 +750,13 @@
     <header class="header">
       <div class="header-info">
         <div id="statusDot" class="status-dot" role="status" aria-label="Ready"></div>
-        <h1 id="headerTitle">LLM UI</h1>
+        <div class="model-picker-wrapper">
+          <button id="modelPickerTrigger" class="model-picker-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+            <span id="headerTitle">LLM UI</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div id="modelPickerDropdown" class="model-picker-dropdown" role="listbox" hidden></div>
+        </div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" id="clearChatButton" type="button" aria-label="Clear chat">
@@ -724,6 +869,8 @@
 
     /* ── DOM refs ──────────────────────────────────── */
     const els = {
+      modelPickerTrigger: document.getElementById("modelPickerTrigger"),
+      modelPickerDropdown: document.getElementById("modelPickerDropdown"),
       settingsToggle: document.getElementById("settingsToggle"),
       settingsPanel: document.getElementById("settingsPanel"),
       settingsClose: document.getElementById("settingsClose"),
@@ -980,6 +1127,79 @@
       els.headerTitle.textContent = state.model || "LLM UI";
     }
 
+    /* ── Model picker (header dropdown) ────────────── */
+    function getAvailableModels() {
+      const options = els.modelSelect.options;
+      const models = [];
+      for (let i = 0; i < options.length; i++) {
+        if (options[i].value) {
+          models.push(options[i].value);
+        }
+      }
+      return models;
+    }
+
+    function renderModelPicker() {
+      const dropdown = els.modelPickerDropdown;
+      dropdown.innerHTML = "";
+
+      const models = getAvailableModels();
+      if (models.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "model-picker-empty";
+        empty.textContent = "No models available";
+        dropdown.appendChild(empty);
+        return;
+      }
+
+      models.forEach((modelId) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "model-picker-item" + (modelId === state.model ? " active" : "");
+        btn.setAttribute("role", "option");
+        btn.setAttribute("aria-selected", modelId === state.model ? "true" : "false");
+        btn.innerHTML =
+          '<svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' +
+          '<span style="overflow:hidden;text-overflow:ellipsis">' + escapeHtml(modelId) + '</span>';
+        btn.addEventListener("click", () => {
+          state.model = modelId;
+          els.modelSelect.value = modelId;
+          saveSettings();
+          updateHeaderTitle();
+          closeModelPicker();
+        });
+        dropdown.appendChild(btn);
+      });
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function toggleModelPicker() {
+      const isOpen = !els.modelPickerDropdown.hidden;
+      if (isOpen) {
+        closeModelPicker();
+      } else {
+        openModelPicker();
+      }
+    }
+
+    function openModelPicker() {
+      renderModelPicker();
+      els.modelPickerDropdown.hidden = false;
+      els.modelPickerTrigger.classList.add("open");
+      els.modelPickerTrigger.setAttribute("aria-expanded", "true");
+    }
+
+    function closeModelPicker() {
+      els.modelPickerDropdown.hidden = true;
+      els.modelPickerTrigger.classList.remove("open");
+      els.modelPickerTrigger.setAttribute("aria-expanded", "false");
+    }
+
     function closeSettings() {
       els.settingsPanel.hidden = true;
     }
@@ -1197,8 +1417,29 @@
 
     /* ── Event binding ─────────────────────────────── */
     function bindEvents() {
+      /* Model picker (header dropdown) */
+      els.modelPickerTrigger.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggleModelPicker();
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!els.modelPickerDropdown.hidden &&
+            !els.modelPickerDropdown.contains(event.target) &&
+            !els.modelPickerTrigger.contains(event.target)) {
+          closeModelPicker();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !els.modelPickerDropdown.hidden) {
+          closeModelPicker();
+        }
+      });
+
       /* Settings open / close */
       els.settingsToggle.addEventListener("click", () => {
+        closeModelPicker();
         els.settingsPanel.hidden = false;
       });
 
